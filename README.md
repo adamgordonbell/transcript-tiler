@@ -6,9 +6,12 @@
 filler "like" both end at a 0 dB boundary (cuttable); "we're→tighter" is embedded
 at 24 dB. Regenerate with `uv run python samples/render.py`.*
 
-Refine the sloppy word timestamps from your speech-to-text tool into an exact,
-gap-free **word | silence | noise tiling** of the audio — using energy, silero
-VAD, and spectral flatness only. No forced alignment, no re-transcription.
+**Work in progress.** Refine the sloppy word timestamps from your
+speech-to-text tool into a gap-free **word | silence | noise tiling** of the
+audio — using energy, silero VAD, and spectral flatness only. No forced
+alignment, no re-transcription. Being developed and tested against
+[CoRecursive](https://corecursive.com) podcast audio; expect rough edges
+elsewhere (ungated audio in particular is untested — see below).
 
 Every instant of the track gets exactly one label; boundaries are shared
 transitions (a word's end *is* the next label's start). Each word also carries
@@ -17,9 +20,10 @@ and how deeply the signal dips to the noise floor there (`startDb`/`endDb`,
 0 dB = a true pause) — so downstream tools can decide which words are safely
 cuttable.
 
-Against a hand-labeled golden set, this tiler scored **0 gross / 0 severe
-boundary errors** (p90 44 ms) where raw STT marks and forced aligners
-(MMS/wav2vec2, WhisperX) sat at 7–10 gross errors per set.
+On a small hand-labeled golden set from that audio (14 clips), this approach
+scored 0 gross / 0 severe boundary errors (p90 44 ms) where raw STT marks and
+forced aligners (MMS/wav2vec2, WhisperX) sat at 7–10 gross errors per set —
+promising, but not yet validated beyond that corpus.
 
 ## Install
 
