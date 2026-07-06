@@ -1,7 +1,7 @@
-"""wordtiler CLI.
+"""transcript_tiler CLI.
 
-  wordtiler tile  <audio> <transcript.json> [-o OUT] [--from FMT] [--format json|textgrid|audacity] [--no-cache]
-  wordtiler stops <labels.json> [--max-db 3.0] [--only um,uh] [--min-dur 0.03]
+  transcript_tiler tile  <audio> <transcript.json> [-o OUT] [--from FMT] [--format json|textgrid|audacity] [--no-cache]
+  transcript_tiler stops <labels.json> [--max-db 3.0] [--only um,uh] [--min-dur 0.03]
 """
 import argparse
 import json
@@ -29,7 +29,7 @@ def cmd_tile(args):
 def _load_labeling(path):
     labeling = json.load(sys.stdin if path == "-" else open(path))
     if "labels" not in labeling:
-        sys.exit("not a labeling file (no 'labels' key) — run `wordtiler tile` first")
+        sys.exit("not a labeling file (no 'labels' key) — run `transcript_tiler tile` first")
     return labeling
 
 
@@ -79,7 +79,7 @@ def cmd_stats(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="wordtiler",
+    ap = argparse.ArgumentParser(prog="transcript-tiler",
                                  description="Refine STT word timestamps into a complete word|silence|noise tiling.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -95,7 +95,7 @@ def main():
     t.set_defaults(fn=cmd_tile)
 
     s = sub.add_parser("stops", help="labeling → words FREE enough to cut (fillers/stop words)")
-    s.add_argument("labels", help="labeling JSON from `wordtiler tile` ('-' for stdin)")
+    s.add_argument("labels", help="labeling JSON from `transcript_tiler tile` ('-' for stdin)")
     s.add_argument("--max-db", type=float, default=10.0,
                    help="'free' threshold: worst edge within this of the noise floor (default 10)")
     s.add_argument("--near-db", type=float, default=30.0,
@@ -110,7 +110,7 @@ def main():
     s.set_defaults(fn=cmd_stops)
 
     st = sub.add_parser("stats", help="labeling → floor + edge-dB distribution (calibrate thresholds for your audio)")
-    st.add_argument("labels", help="labeling JSON from `wordtiler tile` ('-' for stdin)")
+    st.add_argument("labels", help="labeling JSON from `transcript_tiler tile` ('-' for stdin)")
     st.set_defaults(fn=cmd_stats)
 
     args = ap.parse_args()

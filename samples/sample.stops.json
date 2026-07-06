@@ -1,0 +1,26 @@
+[
+  {
+    "kind": "word",
+    "w": "like",
+    "start": 0.559,
+    "end": 0.693,
+    "startKind": "silence",
+    "endKind": "word",
+    "startDb": 0.0,
+    "endDb": 0.0,
+    "freeSide": "start",
+    "category": "one-sided"
+  },
+  {
+    "kind": "word",
+    "w": "we're",
+    "start": 0.693,
+    "end": 0.988,
+    "startKind": "word",
+    "endKind": "silence",
+    "startDb": 0.0,
+    "endDb": 0.0,
+    "freeSide": "end",
+    "category": "one-sided"
+  }
+]

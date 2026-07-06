@@ -1,0 +1,142 @@
+{
+  "windowStart": 0.0,
+  "words": [
+    {
+      "w": "right",
+      "start": 0.0,
+      "end": 0.22,
+      "startKind": "clip",
+      "endKind": "silence",
+      "startDb": 47.9,
+      "endDb": 0.0
+    },
+    {
+      "w": "like",
+      "start": 0.559,
+      "end": 0.693,
+      "startKind": "silence",
+      "endKind": "word",
+      "startDb": 0.0,
+      "endDb": 0.0
+    },
+    {
+      "w": "we're",
+      "start": 0.693,
+      "end": 0.988,
+      "startKind": "word",
+      "endKind": "silence",
+      "startDb": 0.0,
+      "endDb": 0.0
+    },
+    {
+      "w": "we're",
+      "start": 1.387,
+      "end": 1.631,
+      "startKind": "silence",
+      "endKind": "word",
+      "startDb": 0.0,
+      "endDb": 24.0
+    },
+    {
+      "w": "tighter",
+      "start": 1.631,
+      "end": 2.035,
+      "startKind": "word",
+      "endKind": "silence",
+      "startDb": 24.0,
+      "endDb": 0.0
+    }
+  ],
+  "silences": [
+    [
+      0.22,
+      0.559
+    ],
+    [
+      0.988,
+      1.387
+    ],
+    [
+      2.035,
+      2.6
+    ]
+  ],
+  "noise": [],
+  "labels": [
+    {
+      "kind": "word",
+      "w": "right",
+      "start": 0.0,
+      "end": 0.22,
+      "startKind": "clip",
+      "endKind": "silence",
+      "startDb": 47.9,
+      "endDb": 0.0
+    },
+    {
+      "kind": "silence",
+      "w": "",
+      "start": 0.22,
+      "end": 0.559
+    },
+    {
+      "kind": "word",
+      "w": "like",
+      "start": 0.559,
+      "end": 0.693,
+      "startKind": "silence",
+      "endKind": "word",
+      "startDb": 0.0,
+      "endDb": 0.0
+    },
+    {
+      "kind": "word",
+      "w": "we're",
+      "start": 0.693,
+      "end": 0.988,
+      "startKind": "word",
+      "endKind": "silence",
+      "startDb": 0.0,
+      "endDb": 0.0
+    },
+    {
+      "kind": "silence",
+      "w": "",
+      "start": 0.988,
+      "end": 1.387
+    },
+    {
+      "kind": "word",
+      "w": "we're",
+      "start": 1.387,
+      "end": 1.631,
+      "startKind": "silence",
+      "endKind": "word",
+      "startDb": 0.0,
+      "endDb": 24.0
+    },
+    {
+      "kind": "word",
+      "w": "tighter",
+      "start": 1.631,
+      "end": 2.035,
+      "startKind": "word",
+      "endKind": "silence",
+      "startDb": 24.0,
+      "endDb": 0.0
+    },
+    {
+      "kind": "silence",
+      "w": "",
+      "start": 2.035,
+      "end": 2.6
+    }
+  ],
+  "floors": [
+    {
+      "start": 0.0,
+      "end": 2.4,
+      "dbfs": -77.2
+    }
+  ]
+}

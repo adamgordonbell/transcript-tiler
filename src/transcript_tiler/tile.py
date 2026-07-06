@@ -11,7 +11,7 @@ Energy + silero VAD + spectral flatness only (see features.py) — no forced
 aligners, no re-transcription.
 
   # library
-  from wordtiler.tile import tile_audio, enrich
+  from transcript_tiler.tile import tile_audio, enrich
   tiles = tile_audio("clip.wav", [{"w": "It's", "start": 0.22, "end": 0.52}, ...])
 
 Input words: [{"w"|"word", "t"|"start", "e"|"end"}, ...]
@@ -299,7 +299,7 @@ ALGO_VERSION = "tile-v5.1"                                # bump to invalidate t
 
 def _cache_dir():
     base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
-    return os.path.join(base, "wordtiler")
+    return os.path.join(base, "transcript_tiler")
 
 
 def _norm(words):

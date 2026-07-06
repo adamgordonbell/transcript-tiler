@@ -1,4 +1,10 @@
-# wordtiler
+# transcript-tiler
+
+![A labeled waveform: word tiles under the audio, silence tiles between them, per-boundary freedom in dB](docs/sample-labeling.svg)
+
+*Above: [`samples/sample.wav`](samples/) tiled — the stutter's first "we're" and the
+filler "like" both end at a 0 dB boundary (cuttable); "we're→tighter" is embedded
+at 24 dB. Regenerate with `uv run python samples/render.py`.*
 
 Refine the sloppy word timestamps from your speech-to-text tool into an exact,
 gap-free **word | silence | noise tiling** of the audio — using energy, silero
@@ -28,14 +34,14 @@ uv sync            # or: pip install .
 whisper track.wav --model medium --word_timestamps True --output_format json
 
 # 1. build the labeling (corrected word boundaries + edge freedom)
-uv run wordtiler tile track.wav track.json                  # → track.labels.json
+uv run transcript-tiler tile track.wav track.json                  # → track.labels.json
 
 # 2. calibrate for YOUR audio: see the noise floor + edge-dB distribution
-uv run wordtiler stats track.labels.json
+uv run transcript-tiler stats track.labels.json
 
 # 3. emit the words free enough to cut
-uv run wordtiler stops track.labels.json --only um,uh                # clean both sides
-uv run wordtiler stops track.labels.json --only um,uh --seam-db 10   # + one-sided cuts
+uv run transcript-tiler stops track.labels.json --only um,uh                # clean both sides
+uv run transcript-tiler stops track.labels.json --only um,uh --seam-db 10   # + one-sided cuts
 ```
 
 There is no separate "measure the silence level" step — the noise floor is
@@ -55,8 +61,8 @@ just above the pause-edge p95 (the `stats` output suggests a value).
 Other outputs:
 
 ```bash
-uv run wordtiler tile clip.wav clip.json --format textgrid  # → Praat/ELAN interop
-uv run wordtiler tile clip.wav clip.json --format audacity  # → Audacity label track
+uv run transcript-tiler tile clip.wav clip.json --format textgrid  # → Praat/ELAN interop
+uv run transcript-tiler tile clip.wav clip.json --format audacity  # → Audacity label track
 ```
 
 Scales to multi-hour files (chunked partial decode, split at silences) and
@@ -87,15 +93,47 @@ caches by content hash — re-runs on unchanged input are instant.
 exports the tiling for Praat/ELAN/MFA comparison (edge freedom is JSON-only;
 no standard slot for it).
 
+## Actually cutting the words (ffmpeg)
+
+`stops` gives you spans; removing them cleanly is three ideas:
+
+1. **Keep segments, don't cut segments** — invert the cut spans into a keep
+   list and rebuild the file from those.
+2. **Butt joints are already clean** — every cut face sits at the noise floor
+   (that's precisely what the dB check verified), so the seam is
+   silence-to-silence.
+3. **Micro-fade as insurance** — a ~5 ms `afade` in/out on each keep segment
+   face guards against dither/DC ticks. Not a crossfade; the segments don't
+   overlap.
+
+[`samples/cut.py`](samples/cut.py) does exactly this with one ffmpeg
+`filter_complex` (atrim → afade in/out → concat):
+
+```bash
+uv run transcript-tiler stops track.labels.json --only um,uh -o cuts.json
+uv run python samples/cut.py track.wav cuts.json trimmed.wav
+```
+
+If you'd rather review before cutting, `--format audacity` gives you the same
+spans as an importable label track.
+
+## Samples
+
+[`samples/`](samples/) has the full round-trip on a 2.6 s clip:
+`sample.wav` + `sample.json` (input words) → `sample.labels.json` (the tiling
+above) → `sample.stops.json` (the two one-sided hits). Plus `render.py` (the
+header image) and `cut.py` (the ffmpeg remover).
+
 ## Library
 
 ```python
-from wordtiler.adapters import load_transcript
-from wordtiler.tile import enrich
-from wordtiler.stops import free_words
+from transcript_tiler.adapters import load_transcript
+from transcript_tiler.tile import enrich
+from transcript_tiler.stops import free_words
 
 labeling = enrich("clip.wav", load_transcript("clip.whisper.json"))
-cuttable = free_words(labeling, max_db=3.0, only=["um", "uh"])
+cuttable = free_words(labeling, only=["um", "uh"], seam_db=10)
+# each hit: {"w", "start", "end", "category": "free"|"one-sided", "freeSide", ...}
 ```
 
 ## How it works

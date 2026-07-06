@@ -1,0 +1,29 @@
+{
+  "words": [
+    {
+      "w": "right",
+      "start": 0.02,
+      "end": 0.18
+    },
+    {
+      "w": "like",
+      "start": 0.6,
+      "end": 0.741
+    },
+    {
+      "w": "we're",
+      "start": 0.8,
+      "end": 1.38
+    },
+    {
+      "w": "we're",
+      "start": 1.44,
+      "end": 1.6
+    },
+    {
+      "w": "tighter",
+      "start": 1.64,
+      "end": 2
+    }
+  ]
+}
