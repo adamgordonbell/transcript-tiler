@@ -8,6 +8,7 @@
     "endKind": "word",
     "startDb": 0.0,
     "endDb": 0.0,
+    "silenceStart": 0.22,
     "freeSide": "start",
     "category": "one-sided"
   },
@@ -20,6 +21,7 @@
     "endKind": "silence",
     "startDb": 0.0,
     "endDb": 0.0,
+    "silenceEnd": 1.387,
     "freeSide": "end",
     "category": "one-sided"
   }

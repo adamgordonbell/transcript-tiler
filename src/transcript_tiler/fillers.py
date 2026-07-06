@@ -1,4 +1,4 @@
-"""stops.py — emit the FREE words: candidates for removal (fillers, stop words).
+"""fillers.py — emit the FREE words: candidates for removal (fillers, disfluencies).
 
 Pure interval math over an existing labeling (the output of tile) — no audio
 needed. A word is *free at threshold `max_db`* when BOTH of its edges dip to
@@ -47,11 +47,26 @@ def free_words(labeling, max_db=10.0, near_db=30.0, seam_db=None, only=None, min
     real dial: 10 = conservative (seam dips as deep as a free edge), 15 =
     the knee. These hits get freeSide: "start"|"end" and category "one-sided".
 
+    Each hit also carries the extent of its flanking pause tiles when present —
+    `silenceStart` (start of the preceding silence/noise tile) and `silenceEnd`
+    (end of the following one) — so a cutter can absorb adjacent silence
+    without re-reading the labeling.
+
     `only`: iterable of words (case/punct-insensitive) to restrict to.
     `min_dur`: drop words shorter than this."""
     want = {_clean(w) for w in only} if only else None
+    labels = labeling["labels"]
+
+    def flanks(i):
+        f = {}
+        if i > 0 and labels[i - 1]["kind"] != "word":
+            f["silenceStart"] = labels[i - 1]["start"]
+        if i + 1 < len(labels) and labels[i + 1]["kind"] != "word":
+            f["silenceEnd"] = labels[i + 1]["end"]
+        return f
+
     out = []
-    for t in labeling["labels"]:
+    for i, t in enumerate(labels):
         if t["kind"] != "word":
             continue
         if want is not None and _clean(t["w"]) not in want:
@@ -64,7 +79,7 @@ def free_words(labeling, max_db=10.0, near_db=30.0, seam_db=None, only=None, min
         if s_pause and e_pause:
             worst = max(sdb, edb)
             if worst <= near_db:
-                out.append({**t, "freeSide": "both",
+                out.append({**t, **flanks(i), "freeSide": "both",
                             "category": "free" if worst <= max_db else "near"})
             continue
         if seam_db is None:
@@ -74,6 +89,6 @@ def free_words(labeling, max_db=10.0, near_db=30.0, seam_db=None, only=None, min
         if s_free != e_free:                       # exactly one free pause-side
             seam = edb if s_free else sdb
             if seam <= seam_db:
-                out.append({**t, "freeSide": "start" if s_free else "end",
+                out.append({**t, **flanks(i), "freeSide": "start" if s_free else "end",
                             "category": "one-sided"})
     return out

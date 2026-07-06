@@ -57,8 +57,8 @@ uv run transcript-tiler tile track.wav track.json                  # → track.l
 uv run transcript-tiler stats track.labels.json
 
 # 3. emit the words free enough to cut
-uv run transcript-tiler stops track.labels.json --only um,uh                # clean both sides
-uv run transcript-tiler stops track.labels.json --only um,uh --seam-db 10   # + one-sided cuts
+uv run transcript-tiler fillers track.labels.json --only um,uh                # clean both sides
+uv run transcript-tiler fillers track.labels.json --only um,uh --seam-db 10   # + one-sided cuts
 ```
 
 There is no separate "measure the silence level" step — the noise floor is
@@ -112,9 +112,9 @@ no standard slot for it).
 
 ## Actually cutting the words (ffmpeg)
 
-To be clear about what gets removed: **only the flagged word spans** from the
-`stops` output. The silence around each word is untouched — no silence
-trimming, no pause compression. Removing the words cleanly is three ideas:
+To be clear about what gets removed: by default, **only the flagged word
+spans** from the `fillers` output — the silence around each word is untouched.
+Removing the words cleanly is three ideas:
 
 1. **Keep segments, don't cut segments** — invert the cut spans into a keep
    list and rebuild the file from those.
@@ -125,18 +125,21 @@ trimming, no pause compression. Removing the words cleanly is three ideas:
    face guards against dither/DC ticks. Not a crossfade; the segments don't
    overlap.
 
-One consequence to know: the pause the word sat in survives the cut, and the
-silences on either side of it join into one — so the pause gets *longer* by
-the word's duration. Fine for a rough cut; if pacing matters, follow with a
-silence-shortening pass (a natural fit for the `silences` list in the
-labeling, but not built here yet).
+One consequence of the default: the pause the word sat in survives the cut,
+and the silences on either side of it join into one — so the pause gets
+*longer* by the word's duration. If pacing matters, pass
+**`--absorb-trailing`**: each cut extends through the word's trailing silence
+tile (every `fillers` hit carries its flanking-silence extents as
+`silenceStart`/`silenceEnd`), so what remains is just the leading silence and
+the pause keeps roughly its natural length.
 
-[`samples/cut.py`](samples/cut.py) does exactly this with one ffmpeg
+[`samples/cut.py`](samples/cut.py) does all of this with one ffmpeg
 `filter_complex` (atrim → afade in/out → concat):
 
 ```bash
-uv run transcript-tiler stops track.labels.json --only um,uh -o cuts.json
-uv run python samples/cut.py track.wav cuts.json trimmed.wav
+uv run transcript-tiler fillers track.labels.json --only um,uh -o cuts.json
+uv run python samples/cut.py track.wav cuts.json trimmed.wav                    # words only
+uv run python samples/cut.py track.wav cuts.json trimmed.wav --absorb-trailing  # + their trailing silence
 ```
 
 If you'd rather review before cutting, `--format audacity` gives you the same
@@ -146,7 +149,7 @@ spans as an importable label track.
 
 [`samples/`](samples/) has the full round-trip on a 2.6 s clip:
 `sample.wav` + `sample.json` (input words) → `sample.labels.json` (the tiling
-above) → `sample.stops.json` (the two one-sided hits). Plus `render.py` (the
+above) → `sample.fillers.json` (the two one-sided hits). Plus `render.py` (the
 header image) and `cut.py` (the ffmpeg remover).
 
 ## Library
@@ -154,7 +157,7 @@ header image) and `cut.py` (the ffmpeg remover).
 ```python
 from transcript_tiler.adapters import load_transcript
 from transcript_tiler.tile import enrich
-from transcript_tiler.stops import free_words
+from transcript_tiler.fillers import free_words
 
 labeling = enrich("clip.wav", load_transcript("clip.whisper.json"))
 cuttable = free_words(labeling, only=["um", "uh"], seam_db=10)

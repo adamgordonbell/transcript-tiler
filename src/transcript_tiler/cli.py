@@ -1,7 +1,7 @@
 """transcript_tiler CLI.
 
   transcript_tiler tile  <audio> <transcript.json> [-o OUT] [--from FMT] [--format json|textgrid|audacity] [--no-cache]
-  transcript_tiler stops <labels.json> [--max-db 3.0] [--only um,uh] [--min-dur 0.03]
+  transcript-tiler fillers <labels.json> [--max-db 10] [--only um,uh] [--min-dur 0.03]
 """
 import argparse
 import json
@@ -10,11 +10,11 @@ import sys
 
 from .adapters import load_transcript, FORMATS
 from .export import WRITERS
-from .stops import free_words
+from .fillers import free_words
 
 
 def cmd_tile(args):
-    from .tile import enrich   # lazy: torch import is slow, keep `stops` snappy
+    from .tile import enrich   # lazy: torch import is slow, keep `fillers` snappy
     transcript = load_transcript(args.transcript, fmt=args.frm)
     out = enrich(args.audio, transcript, use_cache=not args.no_cache, progress=True)
     writer, ext = WRITERS[args.format]
@@ -33,7 +33,7 @@ def _load_labeling(path):
     return labeling
 
 
-def cmd_stops(args):
+def cmd_fillers(args):
     labeling = _load_labeling(args.labels)
     only = [w for w in args.only.split(",") if w] if args.only else None
     hits = free_words(labeling, max_db=args.max_db, near_db=args.near_db,
@@ -94,7 +94,7 @@ def main():
     t.add_argument("--no-cache", action="store_true", help="recompute even if cached")
     t.set_defaults(fn=cmd_tile)
 
-    s = sub.add_parser("stops", help="labeling → words FREE enough to cut (fillers/stop words)")
+    s = sub.add_parser("fillers", aliases=["stops"], help="labeling → words FREE enough to cut (fillers, disfluencies)")
     s.add_argument("labels", help="labeling JSON from `transcript_tiler tile` ('-' for stdin)")
     s.add_argument("--max-db", type=float, default=10.0,
                    help="'free' threshold: worst edge within this of the noise floor (default 10)")
@@ -107,7 +107,7 @@ def main():
     s.add_argument("--only", help="comma-separated word list to restrict to (e.g. um,uh,like)")
     s.add_argument("--min-dur", type=float, default=0.0, help="drop words shorter than this (s)")
     s.add_argument("-o", "--out", help="write JSON here instead of stdout")
-    s.set_defaults(fn=cmd_stops)
+    s.set_defaults(fn=cmd_fillers)
 
     st = sub.add_parser("stats", help="labeling → floor + edge-dB distribution (calibrate thresholds for your audio)")
     st.add_argument("labels", help="labeling JSON from `transcript_tiler tile` ('-' for stdin)")
