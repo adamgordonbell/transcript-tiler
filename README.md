@@ -21,17 +21,13 @@ and how deeply the signal dips to the noise floor there (`startDb`/`endDb`,
 0 dB = a true pause) — so downstream tools can decide which words are safely
 cuttable.
 
-On a small hand-labeled golden set from that audio (14 clips), this approach
-scored 0 gross / 0 severe boundary errors (p90 44 ms) where raw STT marks and
-forced aligners (MMS/wav2vec2, WhisperX) sat at 7–10 gross errors per set —
-promising, but not yet validated beyond that corpus.
+In hand-labeled comparisons on that audio, this approach placed word
+boundaries noticeably more accurately than raw STT marks or forced aligners
+(MMS/wav2vec2, WhisperX) — but that's the author's own measurement on one
+corpus, not a benchmark you can rerun from here yet.
 
-This is an extraction: the algorithm comes from a larger private
-podcast-production toolchain, where it drives programmatic edits. The
-hand-labeling UI, golden clips, and eval harness that produced the numbers
-above still live there — so those results aren't reproducible from this repo
-yet. Extracting the eval is the plan; until then, treat the numbers as the
-author's measurements, not a benchmark you can rerun.
+This is an extraction from a larger podcast-production toolchain, where the
+algorithm drives programmatic edits.
 
 ## Install
 
