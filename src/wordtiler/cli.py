@@ -26,21 +26,56 @@ def cmd_tile(args):
           f"{len(out['silences'])} silences, {len(out['noise'])} noise)")
 
 
-def cmd_stops(args):
-    labeling = json.load(sys.stdin if args.labels == "-" else open(args.labels))
+def _load_labeling(path):
+    labeling = json.load(sys.stdin if path == "-" else open(path))
     if "labels" not in labeling:
         sys.exit("not a labeling file (no 'labels' key) — run `wordtiler tile` first")
+    return labeling
+
+
+def cmd_stops(args):
+    labeling = _load_labeling(args.labels)
     only = [w for w in args.only.split(",") if w] if args.only else None
     hits = free_words(labeling, max_db=args.max_db, near_db=args.near_db,
-                      only=only, min_dur=args.min_dur)
+                      seam_db=args.seam_db, only=only, min_dur=args.min_dur)
     if not args.near:
-        hits = [h for h in hits if h["category"] == "free"]
+        hits = [h for h in hits if h["category"] != "near"]
     json.dump(hits, sys.stdout if not args.out else open(args.out, "w"), indent=2)
-    nf = sum(1 for h in hits if h["category"] == "free")
+    from collections import Counter
+    counts = Counter(h["category"] for h in hits)
     if args.out:
-        print(f"wrote {args.out}  ({nf} free, {len(hits) - nf} near)")
+        print(f"wrote {args.out}  ({dict(counts)})")
     else:
         print(file=sys.stdout)
+
+
+def cmd_stats(args):
+    """Calibration view: the estimated floor + the edge-dB distribution, split
+    by boundary type — so a user can pick --max-db/--seam-db for THEIR audio."""
+    labeling = _load_labeling(args.labels)
+    words = [t for t in labeling["labels"] if t["kind"] == "word"]
+    pause, abut = [], []
+    for t in words:
+        for kind_key, db_key in (("startKind", "startDb"), ("endKind", "endDb")):
+            if db_key not in t:
+                continue
+            (pause if t.get(kind_key) in ("silence", "noise", "clip") else abut).append(t[db_key])
+    floors = labeling.get("floors", [])
+    if floors:
+        vals = sorted(f["dbfs"] for f in floors)
+        print(f"noise floor (0 dB reference): median {vals[len(vals)//2]} dBFS "
+              f"across {len(floors)} chunk(s), range [{vals[0]}, {vals[-1]}]")
+    q = lambda xs, p: sorted(xs)[min(len(xs) - 1, int(p * len(xs)))] if xs else float("nan")
+    for name, xs in (("pause-adjacent edges", pause), ("word-abutting edges", abut)):
+        if not xs:
+            continue
+        print(f"{name} (n={len(xs)}): median {q(xs,.5):.1f}  p75 {q(xs,.75):.1f}  "
+              f"p90 {q(xs,.9):.1f}  p95 {q(xs,.95):.1f} dB above floor")
+    if pause:
+        p95 = q(pause, .95)
+        print(f"\nsuggested --max-db: {max(10.0, round(p95 + 2))}"
+              f"  (pause-edge p95 {p95:.1f} + headroom; healthy audio is bimodal —"
+              f" pause edges near 0, abut edges ≫)")
 
 
 def main():
@@ -66,10 +101,17 @@ def main():
     s.add_argument("--near-db", type=float, default=30.0,
                    help="'near' ceiling: worst edge in (max-db, near-db] = audition by ear (default 30)")
     s.add_argument("--near", action="store_true", help="include 'near' words too (default: free only)")
+    s.add_argument("--seam-db", type=float, default=None,
+                   help="also emit ONE-SIDED words (pause on one side) whose word-abutting seam "
+                        "dips within this of the floor (10 = conservative, 15 = the knee; off by default)")
     s.add_argument("--only", help="comma-separated word list to restrict to (e.g. um,uh,like)")
     s.add_argument("--min-dur", type=float, default=0.0, help="drop words shorter than this (s)")
     s.add_argument("-o", "--out", help="write JSON here instead of stdout")
     s.set_defaults(fn=cmd_stops)
+
+    st = sub.add_parser("stats", help="labeling → floor + edge-dB distribution (calibrate thresholds for your audio)")
+    st.add_argument("labels", help="labeling JSON from `wordtiler tile` ('-' for stdin)")
+    st.set_defaults(fn=cmd_stats)
 
     args = ap.parse_args()
     args.fn(args)

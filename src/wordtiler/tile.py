@@ -294,7 +294,7 @@ def tile_words(words, rms, vad, flat, hz=HZ):
             if t["kind"] == "word"]
 
 
-ALGO_VERSION = "tile-v5"                                  # bump to invalidate the cache when the algo/output changes
+ALGO_VERSION = "tile-v5.1"                                # bump to invalidate the cache when the algo/output changes (v5.1: emit per-chunk noise-floor dBFS as "floors")
 
 
 def _cache_dir():
@@ -364,7 +364,7 @@ def tile_file(wav, words, chunk_s=600, gap=0.8, margin=0.4, progress=False):
         else:
             cur.append(i)
     groups.append(cur)
-    tiles = []
+    tiles, floors = [], []
     for gi, grp in enumerate(groups):
         a = max(0.0, nw[grp[0]][1] - margin)
         b = min(dur, nw[grp[-1]][2] + margin)
@@ -373,6 +373,8 @@ def tile_file(wav, words, chunk_s=600, gap=0.8, margin=0.4, progress=False):
             x = x.mean(axis=1)
         local = [(w, t - a, e - a) for (w, t, e) in (nw[k] for k in grp)]
         fr, floor, dt = _fine(x, sr)                                          # for edge-freedom depth
+        floors.append({"start": round(a, 3), "end": round(b, 3),
+                       "dbfs": round(20 * np.log10(max(floor, 1e-12)), 1)})
         for t in refine_edges(tile_full(local, *features(x, sr)), x, sr):    # soft attack/release → floor
             e = {"kind": t["kind"], "w": t["w"], "start": t["start"] + a, "end": t["end"] + a}
             if t["kind"] == "word":                                           # floor-margin at each boundary
@@ -381,7 +383,7 @@ def tile_file(wav, words, chunk_s=600, gap=0.8, margin=0.4, progress=False):
             tiles.append(e)
         if progress:
             print(f"  chunk {gi + 1}/{len(groups)}  [{a:7.1f}-{b:7.1f}s]  {len(grp)} words", flush=True)
-    return _stitch(tiles, dur)
+    return _stitch(tiles, dur), floors
 
 
 def _cache_key(wav, words):
@@ -403,7 +405,7 @@ def enrich(wav, transcript, use_cache=True, progress=False):
     if use_cache and os.path.isfile(cp):
         out = json.load(open(cp)); out["_cached"] = True
         return out
-    tiles = tile_file(wav, words, progress=progress)
+    tiles, floors = tile_file(wav, words, progress=progress)
     # EDGE FREEDOM (structural): each word's start/end kind is its neighbour tile's kind —
     # silence/noise/clip ⇒ that side is FREE (a real pause); `word` ⇒ EMBEDDED (abuts the
     # neighbour with no pause). Pairs with startDb/endDb (the depth of the dip) from tile_file.
@@ -424,6 +426,10 @@ def enrich(wav, transcript, use_cache=True, progress=False):
         "silences": [[rnd(t["start"]), rnd(t["end"])] for t in tiles if t["kind"] == "silence"],
         "noise": [[rnd(t["start"]), rnd(t["end"])] for t in tiles if t["kind"] == "noise"],
         "labels": [label(t) for t in tiles],
+        # per-chunk estimated noise floor (dBFS) — the 0 dB reference all startDb/endDb
+        # values are relative to. Self-estimated (20th-pct fine RMS × 1.5); on gated
+        # audio it sits near the clamp (~-77 dBFS), on ungated audio at room tone.
+        "floors": floors,
     }
     os.makedirs(_cache_dir(), exist_ok=True)
     json.dump(out, open(cp, "w"), indent=2)

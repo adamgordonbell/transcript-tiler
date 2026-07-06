@@ -21,17 +21,42 @@ boundary errors** (p90 44 ms) where raw STT marks and forced aligners
 uv sync            # or: pip install .
 ```
 
-## Use
+## Recipe: transcript → cuttable filler list
 
 ```bash
-# Whisper / WhisperX / generic word-timestamp JSON in, labeling out
-uv run wordtiler tile clip.wav clip.whisper.json            # → clip.whisper.labels.json
+# 0. get a word-timestamped transcript (any of Whisper/WhisperX/generic)
+whisper track.wav --model medium --word_timestamps True --output_format json
+
+# 1. build the labeling (corrected word boundaries + edge freedom)
+uv run wordtiler tile track.wav track.json                  # → track.labels.json
+
+# 2. calibrate for YOUR audio: see the noise floor + edge-dB distribution
+uv run wordtiler stats track.labels.json
+
+# 3. emit the words free enough to cut
+uv run wordtiler stops track.labels.json --only um,uh                # clean both sides
+uv run wordtiler stops track.labels.json --only um,uh --seam-db 10   # + one-sided cuts
+```
+
+There is no separate "measure the silence level" step — the noise floor is
+self-estimated per chunk (20th-percentile fine RMS × 1.5) and every
+`startDb`/`endDb` in the output is *relative to it* (0 dB = at the floor).
+The estimated floor is reported in the output (`"floors"`, dBFS) and by
+`stats`, so you can sanity-check it.
+
+**Gated vs ungated audio.** On gated tracks (edges pumped to digital zero)
+the floor sits at the gate residue (~−77 dBFS) and free edges score exactly
+0 dB — the distribution is sharply bimodal and the defaults just work. On
+ungated audio the floor lands on your room tone and free-edge dBs will sit a
+little above 0. Run `stats` first: healthy audio shows pause-adjacent edges
+clustered near 0 dB and word-abutting edges ≫ (median ~30); set `--max-db`
+just above the pause-edge p95 (the `stats` output suggests a value).
+
+Other outputs:
+
+```bash
 uv run wordtiler tile clip.wav clip.json --format textgrid  # → Praat/ELAN interop
 uv run wordtiler tile clip.wav clip.json --format audacity  # → Audacity label track
-
-# words free enough to cut (fillers / stop words) — pure interval math, no audio
-uv run wordtiler stops clip.labels.json --only um,uh --max-db 3
-uv run wordtiler stops clip.labels.json                     # every free word
 ```
 
 Scales to multi-hour files (chunked partial decode, split at silences) and

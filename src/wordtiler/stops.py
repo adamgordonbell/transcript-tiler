@@ -31,12 +31,24 @@ def _clean(w):
     return w.lower().strip(".,!?;:\"'`’”…—- ")
 
 
-def free_words(labeling, max_db=10.0, near_db=30.0, only=None, min_dur=0.0):
-    """[{w, start, end, startDb, endDb, category, ...}] — words with a real
-    pause on both sides, whose worst edge is under `near_db`. category: "free"
-    (worst edge ≤ max_db — clean cut) or "near" (in (max_db, near_db] — close,
-    listen first). `only`: iterable of words (case/punct-insensitive) to
-    restrict to. `min_dur`: drop words shorter than this."""
+def free_words(labeling, max_db=10.0, near_db=30.0, seam_db=None, only=None, min_dur=0.0):
+    """[{w, start, end, startDb, endDb, category, freeSide, ...}].
+
+    Two-sided (default): words with a real pause on both sides, worst edge
+    under `near_db`. category: "free" (worst edge ≤ max_db — clean cut) or
+    "near" (in (max_db, near_db] — close, listen first). freeSide: "both".
+
+    One-sided (`seam_db` set): ALSO admit words with a pause on exactly one
+    side (that edge ≤ max_db) whose OTHER boundary — the word-abutting seam —
+    dips within `seam_db` of the floor. The cut lands at the inter-word valley;
+    the neighbour's onset/tail stays intact, so the seam sounds like a normal
+    pause→word transition. Unlike the bimodal two-sided case, seam dBs spread
+    continuously (0→50 dB on the reference episode), so this threshold is a
+    real dial: 10 = conservative (seam dips as deep as a free edge), 15 =
+    the knee. These hits get freeSide: "start"|"end" and category "one-sided".
+
+    `only`: iterable of words (case/punct-insensitive) to restrict to.
+    `min_dur`: drop words shorter than this."""
     want = {_clean(w) for w in only} if only else None
     out = []
     for t in labeling["labels"]:
@@ -46,10 +58,22 @@ def free_words(labeling, max_db=10.0, near_db=30.0, only=None, min_dur=0.0):
             continue
         if t["end"] - t["start"] < min_dur:
             continue
-        if t.get("startKind") not in FREE_KINDS or t.get("endKind") not in FREE_KINDS:
+        s_pause = t.get("startKind") in FREE_KINDS
+        e_pause = t.get("endKind") in FREE_KINDS
+        sdb, edb = t.get("startDb", 0.0), t.get("endDb", 0.0)
+        if s_pause and e_pause:
+            worst = max(sdb, edb)
+            if worst <= near_db:
+                out.append({**t, "freeSide": "both",
+                            "category": "free" if worst <= max_db else "near"})
             continue
-        worst = max(t.get("startDb", 0.0), t.get("endDb", 0.0))
-        if worst > near_db:
+        if seam_db is None:
             continue
-        out.append({**t, "category": "free" if worst <= max_db else "near"})
+        s_free = s_pause and sdb <= max_db
+        e_free = e_pause and edb <= max_db
+        if s_free != e_free:                       # exactly one free pause-side
+            seam = edb if s_free else sdb
+            if seam <= seam_db:
+                out.append({**t, "freeSide": "start" if s_free else "end",
+                            "category": "one-sided"})
     return out
