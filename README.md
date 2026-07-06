@@ -7,10 +7,12 @@ filler "like" both end at a 0 dB boundary (cuttable); "we're→tighter" is embed
 at 24 dB. Regenerate with `uv run python samples/render.py samples/sample.wav
 samples/sample.labels.json docs/sample-labeling.svg`.*
 
-**Work in progress.** Refine the sloppy word timestamps from your
-speech-to-text tool into a gap-free **word | silence | noise tiling** of the
-audio — using energy, silero VAD, and spectral flatness only. No forced
-alignment, no re-transcription. Being developed and tested against
+**Work in progress.** A word-alignment refiner — an energy/VAD alternative to
+forced aligners (MFA, Gentle, WhisperX) that corrects the word timestamps your
+STT already gave you instead of re-aligning from scratch. It turns those
+sloppy marks into a gap-free **word | silence | noise tiling** of the audio,
+using energy, silero VAD, and spectral flatness only — no acoustic models, no
+re-transcription. Being developed and tested against
 [CoRecursive](https://corecursive.com) podcast audio; expect rough edges
 elsewhere (ungated audio in particular is untested — see below).
 
