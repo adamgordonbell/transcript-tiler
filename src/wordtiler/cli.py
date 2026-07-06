@@ -31,10 +31,14 @@ def cmd_stops(args):
     if "labels" not in labeling:
         sys.exit("not a labeling file (no 'labels' key) — run `wordtiler tile` first")
     only = [w for w in args.only.split(",") if w] if args.only else None
-    hits = free_words(labeling, max_db=args.max_db, only=only, min_dur=args.min_dur)
+    hits = free_words(labeling, max_db=args.max_db, near_db=args.near_db,
+                      only=only, min_dur=args.min_dur)
+    if not args.near:
+        hits = [h for h in hits if h["category"] == "free"]
     json.dump(hits, sys.stdout if not args.out else open(args.out, "w"), indent=2)
+    nf = sum(1 for h in hits if h["category"] == "free")
     if args.out:
-        print(f"wrote {args.out}  ({len(hits)} free words at ≤{args.max_db} dB)")
+        print(f"wrote {args.out}  ({nf} free, {len(hits) - nf} near)")
     else:
         print(file=sys.stdout)
 
@@ -57,8 +61,11 @@ def main():
 
     s = sub.add_parser("stops", help="labeling → words FREE enough to cut (fillers/stop words)")
     s.add_argument("labels", help="labeling JSON from `wordtiler tile` ('-' for stdin)")
-    s.add_argument("--max-db", type=float, default=3.0,
-                   help="freedom threshold: both edges must dip within this of the noise floor (default 3.0)")
+    s.add_argument("--max-db", type=float, default=10.0,
+                   help="'free' threshold: worst edge within this of the noise floor (default 10)")
+    s.add_argument("--near-db", type=float, default=30.0,
+                   help="'near' ceiling: worst edge in (max-db, near-db] = audition by ear (default 30)")
+    s.add_argument("--near", action="store_true", help="include 'near' words too (default: free only)")
     s.add_argument("--only", help="comma-separated word list to restrict to (e.g. um,uh,like)")
     s.add_argument("--min-dur", type=float, default=0.0, help="drop words shorter than this (s)")
     s.add_argument("-o", "--out", help="write JSON here instead of stdout")
