@@ -4,7 +4,8 @@
 
 *Above: [`samples/sample.wav`](samples/) tiled — the stutter's first "we're" and the
 filler "like" both end at a 0 dB boundary (cuttable); "we're→tighter" is embedded
-at 24 dB. Regenerate with `uv run python samples/render.py`.*
+at 24 dB. Regenerate with `uv run python samples/render.py samples/sample.wav
+samples/sample.labels.json docs/sample-labeling.svg`.*
 
 **Work in progress.** Refine the sloppy word timestamps from your
 speech-to-text tool into a gap-free **word | silence | noise tiling** of the
@@ -25,11 +26,23 @@ scored 0 gross / 0 severe boundary errors (p90 44 ms) where raw STT marks and
 forced aligners (MMS/wav2vec2, WhisperX) sat at 7–10 gross errors per set —
 promising, but not yet validated beyond that corpus.
 
+This is an extraction: the algorithm comes from a larger private
+podcast-production toolchain, where it drives programmatic edits. The
+hand-labeling UI, golden clips, and eval harness that produced the numbers
+above still live there — so those results aren't reproducible from this repo
+yet. Extracting the eval is the plan; until then, treat the numbers as the
+author's measurements, not a benchmark you can rerun.
+
 ## Install
 
 ```bash
+git clone https://github.com/adamgordonbell/transcript-tiler
+cd transcript-tiler
 uv sync            # or: pip install .
 ```
+
+Heads up: silero VAD pulls in torch, so the first sync downloads a large
+dependency. Not on PyPI yet.
 
 ## Recipe: transcript → cuttable filler list
 
@@ -99,7 +112,9 @@ no standard slot for it).
 
 ## Actually cutting the words (ffmpeg)
 
-`stops` gives you spans; removing them cleanly is three ideas:
+To be clear about what gets removed: **only the flagged word spans** from the
+`stops` output. The silence around each word is untouched — no silence
+trimming, no pause compression. Removing the words cleanly is three ideas:
 
 1. **Keep segments, don't cut segments** — invert the cut spans into a keep
    list and rebuild the file from those.
@@ -109,6 +124,12 @@ no standard slot for it).
 3. **Micro-fade as insurance** — a ~5 ms `afade` in/out on each keep segment
    face guards against dither/DC ticks. Not a crossfade; the segments don't
    overlap.
+
+One consequence to know: the pause the word sat in survives the cut, and the
+silences on either side of it join into one — so the pause gets *longer* by
+the word's duration. Fine for a rough cut; if pacing matters, follow with a
+silence-shortening pass (a natural fit for the `silences` list in the
+labeling, but not built here yet).
 
 [`samples/cut.py`](samples/cut.py) does exactly this with one ffmpeg
 `filter_complex` (atrim → afade in/out → concat):
